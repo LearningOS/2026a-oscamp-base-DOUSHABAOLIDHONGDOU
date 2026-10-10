@@ -33,7 +33,16 @@ impl Future for CountDown {
     type Output = &'static str;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        todo!()
+        // CountDown is Unpin (no self-references), so `get_mut` is sound.
+        let this = self.get_mut();
+        if this.count == 0 {
+            Poll::Ready("liftoff!")
+        } else {
+            this.count -= 1;
+            // Schedule one more poll; without this the runtime would park forever.
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        }
     }
 }
 
@@ -57,7 +66,14 @@ impl Future for YieldOnce {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        todo!()
+        let this = self.get_mut();
+        if this.yielded {
+            Poll::Ready(())
+        } else {
+            this.yielded = true;
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        }
     }
 }
 

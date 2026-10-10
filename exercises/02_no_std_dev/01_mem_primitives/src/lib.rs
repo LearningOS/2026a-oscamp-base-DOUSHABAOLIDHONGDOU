@@ -27,7 +27,12 @@
 pub unsafe extern "C" fn my_memcpy(dst: *mut u8, src: *const u8, n: usize) -> *mut u8 {
     // TODO: Implement memcpy
     // Hint: read bytes from src one by one and write to dst
-    todo!()
+    let mut i=0;
+    while  i<n {
+        *dst.add(i) = *src.add(i); // *dst取字节
+        i += 1;
+    }
+    dst
 }
 
 /// Set `n` bytes starting at `dst` to the value `c`.
@@ -39,7 +44,12 @@ pub unsafe extern "C" fn my_memcpy(dst: *mut u8, src: *const u8, n: usize) -> *m
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn my_memset(dst: *mut u8, c: u8, n: usize) -> *mut u8 {
     // TODO: Implement memset
-    todo!()
+    let mut i= 0;
+    while i < n {
+        *dst.add(i) = c; // 每个字节都写成c
+        i += 1;
+    }
+    dst
 }
 
 /// Copy `n` bytes from `src` to `dst`, correctly handling overlapping memory.
@@ -52,7 +62,26 @@ pub unsafe extern "C" fn my_memset(dst: *mut u8, c: u8, n: usize) -> *mut u8 {
 pub unsafe extern "C" fn my_memmove(dst: *mut u8, src: *const u8, n: usize) -> *mut u8 {
     // TODO: Implement memmove
     // Hint: when dst > src and regions overlap, copy backwards (from end to start)
-    todo!()
+    // 裸指针不能直接比较大小（*mut u8和*const u8类型不同），转成地址整数再比
+
+    let d = dst as usize;
+    let s = src as usize;
+    if d>s && d< s+n{
+        // 重叠从后往前拷
+        let mut i = n;
+        while i>0 {
+            i-= 1;
+            *dst.add(i) = *src.add(i);
+        }
+    }else{
+        // 不重叠，或dst在前—>从前往后拷
+        let mut i = 0;
+        while  i<n {
+            *dst.add(i) = *src.add(i);
+            i +=1;
+        }
+    }
+    dst
 }
 
 /// Return the length of a null-terminated byte string, excluding the trailing null.
@@ -62,7 +91,12 @@ pub unsafe extern "C" fn my_memmove(dst: *mut u8, src: *const u8, n: usize) -> *
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn my_strlen(s: *const u8) -> usize {
     // TODO: Implement strlen
-    todo!()
+    let mut len = 0;
+    // 一路读到0为止
+    while *s.add(len) !=0 {
+        len += 1;
+    } 
+    len
 }
 
 /// Compare two null-terminated byte strings.
@@ -77,7 +111,21 @@ pub unsafe extern "C" fn my_strlen(s: *const u8) -> usize {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn my_strcmp(s1: *const u8, s2: *const u8) -> i32 {
     // TODO: Implement strcmp
-    todo!()
+    let mut i= 0;
+    loop {
+        let c1 = *s1.add(i);
+        let c2 = *s2.add(i);
+
+        if c1 != c2 {
+            // 返回字符之差，符号表示大小
+            return c1 as i32 - c2 as i32;
+        }
+        if c1 == 0{
+            // 两边同时读到终止符号，完全相等
+            return 0;
+        }
+        i +=1;
+    }
 }
 
 // ============================================================

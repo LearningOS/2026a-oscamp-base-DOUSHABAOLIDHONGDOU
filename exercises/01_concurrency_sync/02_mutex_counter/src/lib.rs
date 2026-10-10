@@ -7,8 +7,10 @@
 //! - `Arc<T>` atomic reference counting enables cross-thread sharing
 //! - `lock()` acquires the lock and accesses data
 
+
 use std::sync::{Arc, Mutex};
 use std::thread;
+
 
 /// Increment a counter concurrently using `n_threads` threads.
 /// Each thread increments the counter `count_per_thread` times.
@@ -20,7 +22,30 @@ pub fn concurrent_counter(n_threads: usize, count_per_thread: usize) -> usize {
     // TODO: Spawn n_threads threads
     // TODO: In each thread, lock() and increment count_per_thread times
     // TODO: Join all threads, return final value
-    todo!()
+    
+    // Arc 让多个线程共享所有权，Mutex保护里面的usize
+    let counter = Arc::new(Mutex::new(0usize));
+    let mut handles = Vec::with_capacity(n_threads);
+
+    for _ in 0..n_threads{
+        // 每个线程拿一个引用计数副本；不加这一行，会把counter move走
+        let counter = Arc::clone(&counter);
+        handles.push(thread::spawn(move || {
+            for _ in 0..count_per_thread{
+                // lock()返回MutexGuard; 语句结束时guard 自动drop->自动解锁
+                let mut guard = counter.lock().unwrap();
+                *guard += 1;
+            }
+        }));
+    }
+    // 先全部join确保所有的写操作已完成
+    for handle in handles  {
+        handle.join().unwrap();
+    }
+    
+    // 最后在读一次最终值
+    let total = *counter.lock().unwrap();
+    total
 }
 
 /// Add elements to a shared vector concurrently using multiple threads.
@@ -32,7 +57,27 @@ pub fn concurrent_collect(n_threads: usize) -> Vec<usize> {
     // TODO: Create Arc<Mutex<Vec<usize>>>
     // TODO: Each thread pushes its own id
     // TODO: After joining all threads, sort the result and return
-    todo!()
+    let shard = Arc::new(Mutex::new(Vec::<usize>::new()));
+
+    let mut handles = Vec::with_capacity(n_threads);
+
+    for id in 0..n_threads{
+        let shared = Arc::clone(&shard);
+
+        handles.push(thread::spawn(move || {
+            // 一行搞定：临时guard 在本语句结束时就解锁
+            shared.lock().unwrap().push(id);
+        }));
+    }
+
+    for handle in handles{
+        handle.join().unwrap();
+    }
+
+    // 各个线程的push的先后顺序不确定，所以排个序
+    let mut result = shard.lock().unwrap().clone();
+    result.sort_unstable();
+    result
 }
 
 #[cfg(test)]
